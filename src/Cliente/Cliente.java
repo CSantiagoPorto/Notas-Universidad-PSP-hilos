@@ -51,11 +51,5 @@ public class Cliente {
 //Aquí vamos a conectar con el servidor, crear los flujos e iniciar el hilo
 }
 
-	/*public void stop() throws IOException {
-		System.out.println("(Cliente) Cerrando conexión...");
-		if (is!=null)is.close();
-		if(socket!=null)socket.close();
-		System.out.println("(Cliente) Conexiones cerradas...");
-	}*/
 	
 

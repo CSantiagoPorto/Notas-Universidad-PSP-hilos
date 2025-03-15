@@ -36,8 +36,10 @@ public class GestionHilosCliente extends Thread{
             	insertarNota(sc);
             	break;
             case "2":
+            	
             	break;
             case "3":
+            	consultarNota(sc);
             	break;
             case "4":
             	break;
@@ -61,9 +63,18 @@ public class GestionHilosCliente extends Thread{
 		String nombre= sc.nextLine();
 		System.out.println("Inserte la nota");
 		String nota=sc.nextLine();
-		out.writeUTF("INSERTAR;"+nombre +";"+ nota);//Envía el mensaje al servidor
+		out.writeUTF("INSERTAR,"+nombre +","+ nota);//Envía el mensaje al servidor
 		String respuesta=in.readUTF();//Lee la respuesta del servidor
 		System.out.println("(Servidor) "+ respuesta);
+	}
+	
+	private void consultarNota(Scanner sc) throws IOException{
+		/*Este método tiene que pedir el nombre, mandarlo al servidor, esperar la respuesta y mostrarla por pantalla*/
+		System.out.println("Inserte el nombre del alumno");
+		String nombre=sc.nextLine();
+		out.writeUTF("CONSULTAR,"+nombre);
+		String respuesta=in.readUTF();
+		System.out.println("(Servidor)"+ respuesta);
 	}
 	
 	
