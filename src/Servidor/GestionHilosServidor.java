@@ -30,10 +30,14 @@ public class GestionHilosServidor implements Runnable{
 			//Creamos el flujo de datos, con el socket le permitimos recibir los mensajes del cliente
 			DataInputStream in= new DataInputStream(socket.getInputStream());
 			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-			
+			String mensaje="Esta respuesta indica que no está entrando al bucle";
 			
 			while(true) {
-				String mensaje= in.readUTF();
+				try{mensaje= in.readUTF();
+				}catch(IOException e) {
+					 System.out.println("(Servidor) Cliente desconectado inesperadamente.");
+		                break;//Si el cliente se desconecta debería salir por aquí
+				}
 				System.out.println("(Servidor )"+ mensaje);
 				
 				//Necesito trocear el mensaje para identificar sus partes
@@ -45,14 +49,20 @@ public class GestionHilosServidor implements Runnable{
 					respuesta=procesarInsercionNota(mensaje);
 					break;
 				case"MODIFICAR":
+					respuesta=procesarModificacionNota(mensaje);
 					break;
 				case"CONSULTAR":
 					respuesta= procesarConsultaNota(mensaje);
 					break;
 				case"ELIMINAR":
+					respuesta=procesarEliminacionNota(mensaje);
 					break;
 				case"SALIR":
-					break;
+					System.out.println("(Servidor ) Cliente ha salido");
+					in.close();
+					out.close();
+					socket.close();
+					return;//Uso esto para que no rompa al salir
 					
 				}out.writeUTF(respuesta);
 				
@@ -63,7 +73,10 @@ public class GestionHilosServidor implements Runnable{
 		
 		} catch (IOException e) {
 			
+			
 			e.printStackTrace();
+			 System.out.println("(Servidor) Cliente desconectado.");
+             return; //
 		}
 		
 	}
@@ -91,13 +104,11 @@ public class GestionHilosServidor implements Runnable{
 			String linea;
 			while ((linea=reader.readLine())!=null) {
 				String[] parte = linea.split(";");
-				if(parte[0].equals(nombre)) {
+				if(parte[0].equalsIgnoreCase(nombre)&& parte.length>1) {
 					return "Error, el alumno ya tiene nota";
 				}
 			}
-		} catch (FileNotFoundException e) {
-			
-			e.printStackTrace();
+		
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -108,6 +119,7 @@ public class GestionHilosServidor implements Runnable{
 			writer.write(nombre+","+ nota);
 			writer.newLine();//Tengo que hacer saltar la línea
 			writer.flush();//fuerza la escritura inmediata
+			writer.close();
 		} catch (IOException e) {
 			
 			e.printStackTrace();
@@ -115,19 +127,70 @@ public class GestionHilosServidor implements Runnable{
 		
 		
 		
-		return nota;//PROVISIONAL
+		return "Alumno " + nombre+ " tiene la nota: "+ nota;
 	}
 	public String procesarConsultaNota(String mensaje) {
 		String parte[]=mensaje.split(",");
 		if(parte.length<2)return "Error: formato no válido";
 		String nombre =parte[1];
 		String resultado= buscarNota(nombre);
-		if(resultado==null) {
+		System.out.println("(BÓRRAME LUEGO) Resultado de buscarNota(): " + resultado);
+		if(resultado==null || resultado.equals("El alumno no existe")) {
 			return "El alumno no existe";
 		}
 		return resultado;
 		
 	
+	}
+	public String procesarModificacionNota(String mensaje) {
+		String[]parte=mensaje.split(",");
+		if(parte.length<3) return "Formato no válido";
+		String nombre=parte[1];
+		String nuevaNota=parte[2];
+		return modificarNota(nombre, nuevaNota);
+	}
+	private String modificarNota(String nombre, String nuevaNota) {
+		boolean encontrado= false;
+		StringBuilder textoNuevo=new StringBuilder();//Almacena los cambios
+		try {
+			BufferedReader reader=new BufferedReader(new FileReader(archivo));
+			String linea;
+			while((linea=reader.readLine())!=null){
+				String[]parte=linea.split(",");
+				if (parte.length<2) continue;
+				if (parte[0].equalsIgnoreCase(nombre) ) {
+					textoNuevo.append(nombre).append(",").append(nuevaNota);//Modificamos
+					encontrado=true;//
+				}else {
+					textoNuevo.append(linea);//Si no encuentra el alumno mantiene la línea
+				}
+				textoNuevo.append("\n");//Necesito este salto de línea
+			}
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		if (!encontrado) {
+			
+			return "El alumno no existe o ya tiene nota asignada";
+		}
+		
+		//Necesito escribirlo en el archivo. Ahora está almacenado en el StringBuilder
+		try {
+			BufferedWriter writer= new BufferedWriter(new FileWriter(archivo, false));//A false sobreescribe
+			writer.write(textoNuevo.toString());//Escribe todo el contenido nuevo
+			writer.flush(); //Obligo a escribir los datos porque si no sale en blanco
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+		return "Nota modificada correctamente";
 	}
 	public String buscarNota(String nombre) {
 		
@@ -136,12 +199,17 @@ public class GestionHilosServidor implements Runnable{
 			BufferedReader reader = new BufferedReader(new FileReader(archivo));
 			String linea;
 			while((linea=reader.readLine())!=null) {
+				 System.out.println("BÓRRAME) Línea leída: " + linea);
 				if(linea.trim().isEmpty()) continue;
 				String[]parte= linea.split(",");
-				if(parte.length<2)continue;
+				if(parte.length<1)continue;
 				if(parte[0].equals(nombre)) {
-					String encontrado= "La nota del alumno "+ nombre+ " es "+parte[1];
-					return encontrado;
+					if(parte.length==1) {
+						return"El alumno "+nombre+" no tiene nota asignada.";
+					}else {
+						return "La nota del alumno "+ nombre+ " es "+parte[1];
+					}
+					
 				}
 			}
 		} catch (FileNotFoundException e) {
@@ -155,6 +223,53 @@ public class GestionHilosServidor implements Runnable{
 		
 		
 	
+	}
+	private String procesarEliminacionNota(String mensaje) {
+		String[]parte=mensaje.split(",");
+		if(parte.length<2) return "Formato no válido";
+		String nombre=parte[1];
+		return eliminarNota(nombre);
+	}
+	private String eliminarNota(String nombre) {
+		boolean encontrado=false;
+		StringBuilder nuevoTexto=new StringBuilder();
+		
+		try {
+			BufferedReader reader= new BufferedReader(new FileReader(archivo));
+			String linea;
+			while((linea =reader.readLine())!=null) {
+				String parte[]= linea.split(",");
+				if(parte.length<2) {continue;}
+				//Estoy leyendo el archivo, que sólo tiene 2 partes en el txt
+				if(parte[0].equalsIgnoreCase(nombre)) {
+					nuevoTexto.append(nombre).append(",");//Mantenemos el nombre
+					encontrado=true;
+				}else {
+					nuevoTexto.append(linea).append("\n");
+				}
+			}
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		if(!encontrado) {
+			return "El alumno no existe";
+			
+			
+		}
+		//Ahora hay que reescribir el archivo
+		try {
+			BufferedWriter writer= new BufferedWriter(new FileWriter(archivo, false));
+			writer.write(nuevoTexto.toString());
+			writer.flush();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return "Nota eliminada correctamente";
 	}
 	
 

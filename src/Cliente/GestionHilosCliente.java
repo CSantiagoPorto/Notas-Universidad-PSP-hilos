@@ -36,12 +36,13 @@ public class GestionHilosCliente extends Thread{
             	insertarNota(sc);
             	break;
             case "2":
-            	
+            	modificarNota(sc);
             	break;
             case "3":
             	consultarNota(sc);
             	break;
             case "4":
+            	eliminarNota(sc);
             	break;
             case "5":
             	break;
@@ -67,6 +68,13 @@ public class GestionHilosCliente extends Thread{
 		String respuesta=in.readUTF();//Lee la respuesta del servidor
 		System.out.println("(Servidor) "+ respuesta);
 	}
+	private void modificarNota(Scanner sc) throws IOException {
+		System.out.println("Inserte el nombre del alumno");
+		String nombre =sc.nextLine();
+		System.out.println("Inserte la nueva nota");
+		String nuevaNota=sc.nextLine();
+		out.writeUTF("MODIFICAR,"+ nombre+","+nuevaNota);
+	}
 	
 	private void consultarNota(Scanner sc) throws IOException{
 		/*Este método tiene que pedir el nombre, mandarlo al servidor, esperar la respuesta y mostrarla por pantalla*/
@@ -77,6 +85,13 @@ public class GestionHilosCliente extends Thread{
 		System.out.println("(Servidor)"+ respuesta);
 	}
 	
+	private void eliminarNota(Scanner sc) throws IOException {
+		System.out.println("Inserte el nombre del alumno que desea eliminar");
+		String nombre= sc.nextLine();
+		out.writeUTF("ELIMINAR,"+nombre);
+		String respuesta=in.readUTF();
+		System.out.println("(Servidor) "+respuesta);
+	}
 	
 	
 	
